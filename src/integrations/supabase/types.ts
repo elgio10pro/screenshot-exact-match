@@ -14,7 +14,81 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      matches: {
+        Row: {
+          anio: number
+          categoria: number
+          equipo_local: string
+          equipo_visitante: string
+          fecha_dia: string | null
+          fecha_nro: number
+          goles_local: number | null
+          goles_visitante: number | null
+          hora: string
+          id: string
+          local_key: string
+          sede: string
+          torneo: string
+          updated_at: string
+          visitante_key: string
+        }
+        Insert: {
+          anio: number
+          categoria: number
+          equipo_local: string
+          equipo_visitante: string
+          fecha_dia?: string | null
+          fecha_nro: number
+          goles_local?: number | null
+          goles_visitante?: number | null
+          hora?: string
+          id?: string
+          local_key: string
+          sede?: string
+          torneo: string
+          updated_at?: string
+          visitante_key: string
+        }
+        Update: {
+          anio?: number
+          categoria?: number
+          equipo_local?: string
+          equipo_visitante?: string
+          fecha_dia?: string | null
+          fecha_nro?: number
+          goles_local?: number | null
+          goles_visitante?: number | null
+          hora?: string
+          id?: string
+          local_key?: string
+          sede?: string
+          torneo?: string
+          updated_at?: string
+          visitante_key?: string
+        }
+        Relationships: []
+      }
+      team_aliases: {
+        Row: {
+          alias_key: string
+          canonical_key: string
+          created_at: string
+          display_name: string
+        }
+        Insert: {
+          alias_key: string
+          canonical_key: string
+          created_at?: string
+          display_name: string
+        }
+        Update: {
+          alias_key?: string
+          canonical_key?: string
+          created_at?: string
+          display_name?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
