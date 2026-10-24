@@ -17,9 +17,11 @@ export type Database = {
       matches: {
         Row: {
           anio: number
+          cat: string
           categoria: number
           equipo_local: string
           equipo_visitante: string
+          estado: string | null
           fecha_dia: string | null
           fecha_nro: number
           goles_local: number | null
@@ -31,12 +33,15 @@ export type Database = {
           torneo: string
           updated_at: string
           visitante_key: string
+          zona: string
         }
         Insert: {
           anio: number
+          cat?: string
           categoria: number
           equipo_local: string
           equipo_visitante: string
+          estado?: string | null
           fecha_dia?: string | null
           fecha_nro: number
           goles_local?: number | null
@@ -48,12 +53,15 @@ export type Database = {
           torneo: string
           updated_at?: string
           visitante_key: string
+          zona?: string
         }
         Update: {
           anio?: number
+          cat?: string
           categoria?: number
           equipo_local?: string
           equipo_visitante?: string
+          estado?: string | null
           fecha_dia?: string | null
           fecha_nro?: number
           goles_local?: number | null
@@ -65,6 +73,25 @@ export type Database = {
           torneo?: string
           updated_at?: string
           visitante_key?: string
+          zona?: string
+        }
+        Relationships: []
+      }
+      sync_state: {
+        Row: {
+          id: number
+          next_unit: number
+          updated_at: string
+        }
+        Insert: {
+          id?: number
+          next_unit?: number
+          updated_at?: string
+        }
+        Update: {
+          id?: number
+          next_unit?: number
+          updated_at?: string
         }
         Relationships: []
       }
