@@ -10,6 +10,7 @@
 <!-- LOVABLE:END -->
 
 ## Project rules
-- FEFI data is scraped only by `src/lib/fefi-sync.server.ts` (button + daily cron route `/api/public/jobs/sync-fefi`); predictions always read from the `matches` table — never fetch fefi.com.ar per prediction.
-- A "team" is club + categoria; team identity is `normalizeTeam()` key, overridable via `team_aliases`.
-- Stats and Poisson model live as pure code in `src/lib/predict.ts` (tested); the AI only writes the explanation from those numbers.
+- This is the FREE version: no database, no server functions, no AI calls. Do not add Supabase tables, `createServerFn`, cron routes or AI gateways back.
+- FEFI data is downloaded ONLY by `scripts/sync-fefi.mjs` (run daily by `.github/workflows/sync-fefi.yml`) into `public/data/matches.json`. The browser reads that file; never fetch fefi.com.ar from the app.
+- A "team" is club + categoria; team identity is the `normalizeTeam()` key (src/lib/fefi-parse.ts), overridable via `scripts/team-aliases.json`.
+- Stats and Poisson model live as pure code in `src/lib/predict.ts` (tested); `src/lib/local-api.ts` wires data to the UI; the commentary comes from fixed templates in `src/lib/explain.ts`.
