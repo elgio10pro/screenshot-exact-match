@@ -43,6 +43,6 @@ export async function runFefiSync() {
   }
   return {
     partidos: rows.length,
-    jugados: rows.filter((r) => r.goles_local !== null).length,
+    jugados: rows.filter((r) => r['goles_local'] !== null).length,
   };
 }

@@ -3,7 +3,7 @@ import { createClient } from "@supabase/supabase-js";
 import { predict, type MatchRow } from "./predict";
 
 function publicClient() {
-  return createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_PUBLISHABLE_KEY!, {
+  return createClient(process.env['SUPABASE_URL']!, process.env['SUPABASE_PUBLISHABLE_KEY']!, {
     auth: { persistSession: false, autoRefreshToken: false },
   });
 }
@@ -46,7 +46,7 @@ export const getTeams = createServerFn({ method: "GET" })
   });
 
 async function writeExplanation(payload: unknown): Promise<string | null> {
-  const apiKey = process.env.LOVABLE_API_KEY;
+  const apiKey = process.env['LOVABLE_API_KEY'];
   if (!apiKey) return null;
   const { createOpenAI } = await import("@ai-sdk/openai");
   const { streamText } = await import("ai");
@@ -56,7 +56,8 @@ async function writeExplanation(payload: unknown): Promise<string | null> {
     headers: { "Lovable-API-Key": apiKey, "X-Lovable-AIG-SDK": "vercel-ai-sdk" },
   });
   const result = streamText({
-    model: provider.responses("openai/gpt-6-astra"),
+    // cast: nested @ai-sdk/provider versions differ only in types
+    model: provider.responses("openai/gpt-6-astra") as unknown as Parameters<typeof streamText>[0]["model"],
     system:
       "Sos un comentarista de fútbol infantil argentino. Escribí 3 o 4 oraciones en español rioplatense (voseo), tono cálido y divertido, explicando el pronóstico. Usá SOLO los datos del JSON recibido: no inventes jugadores, lesiones, historia ni cifras que no estén. Redondeá porcentajes. Recordá que es un juego y lo importante es divertirse. Sin títulos ni listas.",
     messages: [{ role: "user", content: JSON.stringify(payload) }],
