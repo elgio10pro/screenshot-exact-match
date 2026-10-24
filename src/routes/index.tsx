@@ -38,8 +38,8 @@ function Forma({ f }: { f: ("V" | "E" | "D")[] }) {
   if (!f.length) return <span className="text-sm text-muted-foreground">sin partidos</span>;
   const cls = { V: "bg-win", E: "bg-draw", D: "bg-loss" };
   return (
-    <div className="flex gap-1">
-      {f.map((r, i) => (
+    <div className="flex gap-1" title="Del más viejo al más reciente">
+      {[...f].reverse().map((r, i) => (
         <span key={i} className={`grid h-7 w-7 place-items-center rounded-full font-display text-sm text-accent-foreground ${cls[r]}`}>
           {r}
         </span>
