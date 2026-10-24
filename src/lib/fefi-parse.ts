@@ -108,3 +108,51 @@ export function parseFefiHtml(html: string, torneo = "Copa de Campeones", anioDe
   }
   return out;
 }
+
+// ---------- Torneo Anual Baby Fútbol (zonas) ----------
+
+export const ANUAL_ZONAS: { id: number; nombre: string }[] = [
+  ..."12345678".split("").map((n, i) => ({ id: i + 1, nombre: n })),
+  ..."ABCDEFGHIJKL".split("").map((n, i) => ({ id: i + 9, nombre: n })),
+  ...["Blanca", "Bordo", "Celeste", "Oro", "Verde", "Violeta"].map((n, i) => ({ id: i + 21, nombre: n })),
+];
+
+export type AnualMatch = ParsedMatch & { cat: string; zona: string; estado: string | null };
+
+/** Digits-only int for the legacy integer categoria column ("2014/15" -> 201415). */
+export const catToInt = (cat: string) => Number(cat.replace(/\D/g, "").slice(0, 9)) || 0;
+
+export function parseAnualHtml(html: string, torneo: string, zona: string, anio = 2026): AnualMatch[] {
+  const out: AnualMatch[] = [];
+  const sections = html.split(/<section class="fefit-fecha"/).slice(1);
+  for (const sec of sections) {
+    const fecha_nro = Number(/data-panel="(\d+)"/.exec(sec)?.[1] ?? 0);
+    if (!fecha_nro) continue;
+    const dia = decode(/fefit-fecha__titulo[^>]*>[\s\S]*?<span>([\s\S]*?)<\/span>/.exec(sec)?.[1]).replace(/^·\s*/, "") || null;
+    for (const art of sec.split(/<article class="fefit-partido"/).slice(1)) {
+      const table = /<table class="fefit-res">([\s\S]*?)<\/table>/.exec(art)?.[1];
+      if (!table) continue;
+      const estado = decode(/fefit-estado"[^>]*>([^<]*)</.exec(table)?.[1]) || null;
+      const cats = [...table.matchAll(/title="Categoría ([^"]+)"/g)].map((m) => decode(m[1]));
+      const body = /<tbody>([\s\S]*?)<\/tbody>/.exec(table)?.[1] ?? "";
+      const rows = (body.match(/<tr[\s\S]*?<\/tr>/g) ?? []).map((tr) => ({
+        name: decode(/<span class="fefit-eq">[\s\S]*?<span>([\s\S]*?)<\/span>/.exec(tr)?.[1]),
+        cells: [...tr.matchAll(/<td class="fefit-res__c[^"]*"[^>]*>([\s\S]*?)<\/td>/g)].map((m) => decode(m[1])),
+      }));
+      const [L, V] = rows;
+      if (!L?.name || !V?.name) continue;
+      cats.forEach((cat, i) => {
+        const gl = /^\d+$/.test(L.cells[i] ?? "") ? Number(L.cells[i]) : null;
+        const gv = /^\d+$/.test(V.cells[i] ?? "") ? Number(V.cells[i]) : null;
+        const both = gl !== null && gv !== null;
+        out.push({
+          torneo, anio, fecha_nro, fecha_dia: dia, sede: "", hora: "",
+          categoria: catToInt(cat), cat, zona, estado,
+          equipo_local: L.name, equipo_visitante: V.name,
+          goles_local: both ? gl : null, goles_visitante: both ? gv : null,
+        });
+      });
+    }
+  }
+  return out;
+}
