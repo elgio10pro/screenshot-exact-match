@@ -80,7 +80,7 @@ export function parseFefiHtml(html: string, torneo = "Copa de Campeones", anioDe
       const body = m[3].replace(/<thead[\s\S]*?<\/thead>/, "");
       const rows = body.match(/<tr[\s\S]*?<\/tr>/g) ?? [];
       for (const row of rows) {
-        const cells = [...row.matchAll(/<td[^>]*>([\s\S]*?)<\/td>/g)].map((c) => c[1]);
+        const cells: string[] = [...row.matchAll(/<td[^>]*>([\s\S]*?)<\/td>/g)].map((c) => c[1] ?? "");
         if (cells.length < 6) continue;
         const categoria = Number(decode(cells[1]));
         const local = decode(cells[2]);
