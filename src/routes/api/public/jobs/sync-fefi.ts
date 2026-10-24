@@ -1,7 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { authenticateCronRequest } from "@/integrations/supabase/cron-auth";
-import { runFefiSync } from "@/lib/fefi-sync.server";
+import { runNextSyncUnit } from "@/lib/fefi-sync.server";
 
+// Each call refreshes one block (Copa, or one zona's Apertura/Clausura) in rotation.
 export const Route = createFileRoute("/api/public/jobs/sync-fefi")({
   server: {
     handlers: {
@@ -9,8 +10,7 @@ export const Route = createFileRoute("/api/public/jobs/sync-fefi")({
         const authFailure = await authenticateCronRequest(request);
         if (authFailure) return authFailure;
         try {
-          const r = await runFefiSync();
-          return Response.json({ success: true, ...r });
+          return Response.json({ success: true, ...(await runNextSyncUnit()) });
         } catch (e) {
           return Response.json({ success: false, error: (e as Error).message }, { status: 500 });
         }
