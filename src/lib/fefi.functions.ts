@@ -8,7 +8,7 @@ function publicClient() {
   });
 }
 
-export type Scope = { torneo: "anual" | "copa"; zona?: string };
+export type Scope = { torneo: "anual" | "copa"; zona?: string | undefined };
 
 export const syncUnit = createServerFn({ method: "POST" })
   .inputValidator((d: { unit: number }) => ({ unit: Math.max(0, Math.floor(Number(d.unit))) }))

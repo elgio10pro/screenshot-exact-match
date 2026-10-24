@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
-import { getTeams, predictMatch, syncFefi, type Team } from "@/lib/fefi.functions";
+import { getTeams, predictMatch, syncUnit, type Team } from "@/lib/fefi.functions";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -69,7 +69,7 @@ const selectCls =
 function Index() {
   const fetchTeams = useServerFn(getTeams);
   const doPredict = useServerFn(predictMatch);
-  const doSync = useServerFn(syncFefi);
+  const doSync = useServerFn(syncUnit);
 
   const [cat, setCat] = useState<number | null>(null);
   const [teams, setTeams] = useState<Team[]>([]);
@@ -86,7 +86,7 @@ function Index() {
     if (cat === null) return;
     setLoadingTeams(true);
     setA(""); setB(""); setPred(null);
-    fetchTeams({ data: { categoria: cat } })
+    fetchTeams({ data: { torneo: "copa", cat: String(cat) } })
       .then(setTeams)
       .catch(() => setMsg("No pudimos cargar los equipos."))
       .finally(() => setLoadingTeams(false));
@@ -94,7 +94,7 @@ function Index() {
 
   async function onSync() {
     setSyncing(true); setMsg(null);
-    const r = await doSync().catch((e: Error) => ({ ok: false as const, error: e.message }));
+    const r = await doSync({ data: { unit: 0 } }).catch((e: Error) => ({ ok: false as const, error: e.message }));
     setSyncing(false);
     setMsg(r.ok ? `¡Listo! ${r.partidos} partidos (${r.jugados} con resultado).` : `Error al actualizar: ${r.error}`);
     if (r.ok) setReload((x) => x + 1);
@@ -104,7 +104,7 @@ function Index() {
     if (!cat || !a || !b) return;
     setLoading(true); setPred(null); setMsg(null);
     try {
-      setPred(await doPredict({ data: { categoria: cat, a, b } }));
+      setPred(await doPredict({ data: { torneo: "copa", cat: String(cat), a, b } }));
     } catch (e) {
       setMsg((e as Error).message);
     } finally {
