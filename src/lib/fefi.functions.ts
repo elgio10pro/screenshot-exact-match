@@ -8,32 +8,82 @@ function publicClient() {
   });
 }
 
-export const syncFefi = createServerFn({ method: "POST" }).handler(async () => {
-  const { runFefiSync } = await import("./fefi-sync.server");
-  try {
-    return { ok: true as const, ...(await runFefiSync()) };
-  } catch (e) {
-    return { ok: false as const, error: (e as Error).message };
-  }
-});
+export type Scope = { torneo: "anual" | "copa"; zona?: string };
+
+export const syncUnit = createServerFn({ method: "POST" })
+  .inputValidator((d: { unit: number }) => ({ unit: Math.max(0, Math.floor(Number(d.unit))) }))
+  .handler(async ({ data }) => {
+    const { runSyncUnit, SYNC_UNITS } = await import("./fefi-sync.server");
+    if (data.unit >= SYNC_UNITS) return { ok: false as const, error: "Unidad inválida" };
+    try {
+      return { ok: true as const, ...(await runSyncUnit(data.unit)) };
+    } catch (e) {
+      return { ok: false as const, error: (e as Error).message };
+    }
+  });
 
 export type Team = { key: string; nombre: string; pj: number };
 
-async function loadCategory(categoria: number) {
-  const sb = publicClient();
-  const { data, error } = await sb
-    .from("matches")
-    .select("fecha_nro, categoria, local_key, visitante_key, equipo_local, equipo_visitante, goles_local, goles_visitante")
-    .eq("categoria", categoria)
-    .limit(5000);
-  if (error) throw new Error(error.message);
-  return data ?? [];
+const validScope = (d: Scope): Scope => ({
+  torneo: d.torneo === "copa" ? "copa" : "anual",
+  zona: d.zona ? String(d.zona).slice(0, 20) : undefined,
+});
+
+function scoped<T extends { eq: (c: string, v: string) => T; in: (c: string, v: string[]) => T }>(q: T, s: Scope) {
+  if (s.torneo === "copa") return q.eq("torneo", "Copa de Campeones");
+  return q.in("torneo", ["Anual Apertura", "Anual Clausura"]).eq("zona", s.zona ?? "");
 }
 
-export const getTeams = createServerFn({ method: "GET" })
-  .inputValidator((d: { categoria: number }) => ({ categoria: Number(d.categoria) }))
+async function loadCategory(s: Scope, cat: string) {
+  const sb = publicClient();
+  const q = sb
+    .from("matches")
+    .select("torneo, fecha_nro, cat, local_key, visitante_key, equipo_local, equipo_visitante, goles_local, goles_visitante")
+    .eq("cat", cat)
+    .limit(5000);
+  const { data, error } = await scoped(q as never as Parameters<typeof scoped>[0], s) as unknown as Awaited<typeof q>;
+  if (error) throw new Error(error.message);
+  // Clausura comes after Apertura in time: shift its fecha so "recent form" is ordered right.
+  return (data ?? []).map((r) => ({ ...r, categoria: 0, fecha_nro: r.torneo === "Anual Clausura" ? r.fecha_nro + 100 : r.fecha_nro }));
+}
+
+export const getCategories = createServerFn({ method: "GET" })
+  .inputValidator(validScope)
   .handler(async ({ data }) => {
-    const rows = await loadCategory(data.categoria);
+    const sb = publicClient();
+    const q = sb.from("matches").select("cat").not("goles_local", "is", null).limit(10000);
+    const { data: rows, error } = await scoped(q as never as Parameters<typeof scoped>[0], data) as unknown as Awaited<typeof q>;
+    if (error) throw new Error(error.message);
+    return [...new Set((rows ?? []).map((r) => r.cat))].sort();
+  });
+
+export const searchTeams = createServerFn({ method: "GET" })
+  .inputValidator((d: { q: string }) => ({ q: String(d.q ?? "").trim().slice(0, 40) }))
+  .handler(async ({ data }) => {
+    if (data.q.length < 2) return [];
+    const sb = publicClient();
+    const like = `%${data.q.replace(/[%_,()]/g, "")}%`;
+    const { data: rows, error } = await sb
+      .from("matches")
+      .select("zona, local_key, equipo_local, visitante_key, equipo_visitante")
+      .in("torneo", ["Anual Apertura", "Anual Clausura"])
+      .or(`equipo_local.ilike.${like},equipo_visitante.ilike.${like}`)
+      .limit(1000);
+    if (error) throw new Error(error.message);
+    const needle = data.q.toLowerCase();
+    const out = new Map<string, { key: string; nombre: string; zona: string }>();
+    for (const r of rows ?? []) {
+      for (const [k, n] of [[r.local_key, r.equipo_local], [r.visitante_key, r.equipo_visitante]] as const) {
+        if (n.toLowerCase().includes(needle)) out.set(`${r.zona}|${k}`, { key: k, nombre: n, zona: r.zona });
+      }
+    }
+    return [...out.values()].sort((a, b) => a.nombre.localeCompare(b.nombre, "es")).slice(0, 30);
+  });
+
+export const getTeams = createServerFn({ method: "GET" })
+  .inputValidator((d: Scope & { cat: string }) => ({ ...validScope(d), cat: String(d.cat) }))
+  .handler(async ({ data }) => {
+    const rows = await loadCategory(data, data.cat);
     const teams = new Map<string, Team>();
     for (const r of rows) {
       for (const [k, n] of [[r.local_key, r.equipo_local], [r.visitante_key, r.equipo_visitante]] as const) {
@@ -81,12 +131,12 @@ async function writeExplanation(payload: unknown): Promise<string | null> {
 }
 
 export const predictMatch = createServerFn({ method: "POST" })
-  .inputValidator((d: { categoria: number; a: string; b: string }) => {
+  .inputValidator((d: Scope & { cat: string; a: string; b: string }) => {
     if (!d.a || !d.b || d.a === d.b) throw new Error("Elegí dos clubes distintos");
-    return { categoria: Number(d.categoria), a: String(d.a), b: String(d.b) };
+    return { ...validScope(d), cat: String(d.cat), a: String(d.a), b: String(d.b) };
   })
   .handler(async ({ data }) => {
-    const rows = await loadCategory(data.categoria);
+    const rows = await loadCategory(data, data.cat);
     const nameOf = (k: string) =>
       rows.find((r) => r.local_key === k)?.equipo_local ?? rows.find((r) => r.visitante_key === k)?.equipo_visitante ?? k;
     const p = predict(rows as MatchRow[], data.a, data.b);
@@ -94,7 +144,8 @@ export const predictMatch = createServerFn({ method: "POST" })
     const nombreB = nameOf(data.b);
     const nm = (k: string) => nameOf(k);
     const payload = {
-      categoria: data.categoria,
+      torneo: data.torneo === "copa" ? "Copa de Campeones" : `Torneo Anual (Apertura + Clausura), Zona ${data.zona}`,
+      categoria: data.cat,
       miClub: nombreA,
       rival: nombreB,
       marcadorMasProbable: `${nombreA} ${p.marcador.a} - ${p.marcador.b} ${nombreB}`,
