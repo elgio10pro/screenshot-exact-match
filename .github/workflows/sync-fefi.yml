@@ -1,0 +1,35 @@
+  name: Actualizar datos de FEFI
+  
+  on:
+    schedule:
+      - cron: "0 12 * * *" # todos los días, 09:00 hora de Argentina
+    workflow_dispatch: # botón "Run workflow" para correrlo a mano
+  
+  permissions:
+    contents: write
+  
+  concurrency:
+    group: sync-fefi
+    cancel-in-progress: false
+  
+  jobs:
+    sync:
+      runs-on: ubuntu-latest
+      steps:
+        - uses: actions/checkout@v4
+        - uses: actions/setup-node@v4
+          with:
+            node-version: 24
+        - name: Bajar resultados de FEFI
+          run: node scripts/sync-fefi.mjs
+        - name: Guardar cambios (si los hay)
+          run: |
+            if [ -n "$(git status --porcelain public/data/matches.json)" ]; then
+              git config user.name "github-actions[bot]"
+              git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+              git add public/data/matches.json
+              git commit -m "Actualizar datos de FEFI"
+              git push
+            else
+              echo "Sin cambios."
+            fi
