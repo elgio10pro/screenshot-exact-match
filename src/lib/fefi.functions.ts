@@ -29,9 +29,11 @@ const validScope = (d: Scope): Scope => ({
   zona: d.zona ? String(d.zona).slice(0, 20) : undefined,
 });
 
-function scoped<T extends { eq: (c: string, v: string) => T; in: (c: string, v: string[]) => T }>(q: T, s: Scope) {
-  if (s.torneo === "copa") return q.eq("torneo", "Copa de Campeones");
-  return q.in("torneo", ["Anual Apertura", "Anual Clausura"]).eq("zona", s.zona ?? "");
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function scoped<T>(q: T, s: Scope): T {
+  const b = q as any; // eslint-disable-line @typescript-eslint/no-explicit-any
+  if (s.torneo === "copa") return b.eq("torneo", "Copa de Campeones");
+  return b.in("torneo", ["Anual Apertura", "Anual Clausura"]).eq("zona", s.zona ?? "");
 }
 
 async function loadCategory(s: Scope, cat: string) {
@@ -41,7 +43,7 @@ async function loadCategory(s: Scope, cat: string) {
     .select("torneo, fecha_nro, cat, local_key, visitante_key, equipo_local, equipo_visitante, goles_local, goles_visitante")
     .eq("cat", cat)
     .limit(5000);
-  const { data, error } = await scoped(q as never as Parameters<typeof scoped>[0], s) as unknown as Awaited<typeof q>;
+  const { data, error } = await scoped(q, s);
   if (error) throw new Error(error.message);
   // Clausura comes after Apertura in time: shift its fecha so "recent form" is ordered right.
   return (data ?? []).map((r) => ({ ...r, categoria: 0, fecha_nro: r.torneo === "Anual Clausura" ? r.fecha_nro + 100 : r.fecha_nro }));
@@ -52,7 +54,7 @@ export const getCategories = createServerFn({ method: "GET" })
   .handler(async ({ data }) => {
     const sb = publicClient();
     const q = sb.from("matches").select("cat").not("goles_local", "is", null).limit(10000);
-    const { data: rows, error } = await scoped(q as never as Parameters<typeof scoped>[0], data) as unknown as Awaited<typeof q>;
+    const { data: rows, error } = await scoped(q, data);
     if (error) throw new Error(error.message);
     return [...new Set((rows ?? []).map((r) => r.cat))].sort();
   });
