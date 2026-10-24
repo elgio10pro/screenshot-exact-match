@@ -21,7 +21,7 @@ describe("parser", () => {
     const r = parseFefiHtml(html);
     expect(r).toHaveLength(2);
     expect(r[0]).toMatchObject({ fecha_nro: 3, sede: "Sede X", categoria: 18, goles_local: 5, goles_visitante: 2 });
-    expect(r[1].goles_local).toBeNull();
+    expect(r[1]?.goles_local).toBeNull();
   });
 });
 
