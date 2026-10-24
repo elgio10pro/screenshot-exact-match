@@ -37,7 +37,8 @@ export type ParsedMatch = {
   goles_visitante: number | null;
 };
 
-function decode(s: string): string {
+function decode(s: string | undefined): string {
+  s = s ?? "";
   return s
     .replace(/<[^>]*>/g, "")
     .replace(/&#8211;|&ndash;/g, "–")
@@ -51,7 +52,7 @@ function decode(s: string): string {
     .trim();
 }
 
-const toGoal = (s: string): number | null => {
+const toGoal = (s: string | undefined): number | null => {
   const t = decode(s);
   return /^\d+$/.test(t) ? Number(t) : null;
 };
