@@ -92,12 +92,20 @@ function Index() {
       .finally(() => setLoadingTeams(false));
   }, [cat, reload, fetchTeams]);
 
+  // 36 unidades: 18 zonas × (Apertura, Clausura), en el mismo orden que el servidor.
+  const TOTAL_UNIDADES = 36;
+
   async function onSync() {
     setSyncing(true); setMsg(null);
-    const r = await doSync({ data: { unit: 0 } }).catch((e: Error) => ({ ok: false as const, error: e.message }));
+    const fallidas: string[] = [];
+    for (let u = 0; u < TOTAL_UNIDADES; u++) {
+      const r = await doSync({ data: { unit: u } }).catch((e: Error) => ({ ok: false as const, unidad: `Unidad ${u + 1}`, error: e.message }));
+      if (r.ok) setMsg(`${r.unidad} · ${u + 1}/${TOTAL_UNIDADES}`);
+      else fallidas.push(r.unidad);
+    }
     setSyncing(false);
-    setMsg(r.ok ? `¡Listo! ${r.partidos} partidos (${r.jugados} con resultado).` : `Error al actualizar: ${r.error}`);
-    if (r.ok) setReload((x) => x + 1);
+    setMsg(fallidas.length ? `Listo, pero fallaron: ${fallidas.join(", ")}.` : "¡Listo! Datos actualizados.");
+    setReload((x) => x + 1);
   }
 
   async function onPredict() {

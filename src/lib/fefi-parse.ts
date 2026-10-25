@@ -111,8 +111,8 @@ export function parseFefiHtml(html: string, torneo = "Copa de Campeones", anioDe
 
 // ---------- Torneo Anual Baby Fútbol (zonas) ----------
 
+// Solo las 18 zonas por división (letras y colores); las zonas 1 a 8 ya no se usan.
 export const ANUAL_ZONAS: { id: number; nombre: string }[] = [
-  ..."12345678".split("").map((n, i) => ({ id: i + 1, nombre: n })),
   ..."ABCDEFGHIJKL".split("").map((n, i) => ({ id: i + 9, nombre: n })),
   ...["Blanca", "Bordo", "Celeste", "Oro", "Verde", "Violeta"].map((n, i) => ({ id: i + 21, nombre: n })),
 ];

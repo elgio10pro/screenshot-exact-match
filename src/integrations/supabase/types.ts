@@ -116,9 +116,34 @@ export type Database = {
         }
         Relationships: []
       }
+      zona_nivel: {
+        Row: {
+          nivel: number
+          zona: string
+        }
+        Insert: {
+          nivel: number
+          zona: string
+        }
+        Update: {
+          nivel?: number
+          zona?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
-      [_ in never]: never
+      equipos_actuales: {
+        Row: {
+          cat: string | null
+          nivel: number | null
+          nombre: string | null
+          pj: number | null
+          team_key: string | null
+          zona: string | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       [_ in never]: never
