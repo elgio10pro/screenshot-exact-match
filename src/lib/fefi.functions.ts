@@ -13,12 +13,12 @@ export type Scope = { torneo: "anual" | "copa"; zona?: string | undefined };
 export const syncUnit = createServerFn({ method: "POST" })
   .inputValidator((d: { unit: number }) => ({ unit: Math.max(0, Math.floor(Number(d.unit))) }))
   .handler(async ({ data }) => {
-    const { runSyncUnit, SYNC_UNITS } = await import("./fefi-sync.server");
-    if (data.unit >= SYNC_UNITS) return { ok: false as const, error: "Unidad inválida" };
+    const { runSyncUnit, SYNC_UNITS, describeUnit } = await import("./fefi-sync.server");
+    if (data.unit >= SYNC_UNITS) return { ok: false as const, unidad: `Unidad ${data.unit}`, error: "Unidad inválida" };
     try {
       return { ok: true as const, ...(await runSyncUnit(data.unit)) };
     } catch (e) {
-      return { ok: false as const, error: (e as Error).message };
+      return { ok: false as const, unidad: describeUnit(data.unit), error: (e as Error).message };
     }
   });
 

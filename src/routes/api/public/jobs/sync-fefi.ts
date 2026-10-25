@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { authenticateCronRequest } from "@/integrations/supabase/cron-auth";
 import { runNextSyncUnit } from "@/lib/fefi-sync.server";
 
-// Each call refreshes one block (Copa, or one zona's Apertura/Clausura) in rotation.
+// Each call refreshes the next few blocks (one zona's Apertura/Clausura each) in rotation.
 export const Route = createFileRoute("/api/public/jobs/sync-fefi")({
   server: {
     handlers: {
