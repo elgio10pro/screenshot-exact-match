@@ -15,6 +15,13 @@
       "when": 1792871172119,
       "tag": "0001_anual_zonas",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1792889483035,
+      "tag": "0002_zona_nivel_y_equipos_actuales",
+      "breakpoints": true
     }
   ]
 }
