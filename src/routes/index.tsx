@@ -8,7 +8,7 @@ export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
       { title: "Predictor de Partidos – Fútbol Infantil" },
-      { name: "description", content: "Pronóstico no oficial de partidos de la liga FEFI por categoría, con resultados reales de la Copa de Campeones." },
+      { name: "description", content: "Pronóstico no oficial de partidos FEFI por categoría y zona, sumando resultados de Anual Apertura y Clausura." },
       { property: "og:title", content: "Predictor de Partidos – Fútbol Infantil" },
       { property: "og:description", content: "¿Cómo sale el partido? Probabilidades y marcador estimado para clubes FEFI." },
       { property: "og:type", content: "website" },
