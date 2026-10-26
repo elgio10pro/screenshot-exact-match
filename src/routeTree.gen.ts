@@ -10,43 +10,33 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
-import { Route as ApiPublicJobsSyncFefiRouteImport } from './routes/api/public/jobs/sync-fefi'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ApiPublicJobsSyncFefiRoute = ApiPublicJobsSyncFefiRouteImport.update({
-  id: '/api/public/jobs/sync-fefi',
-  path: '/api/public/jobs/sync-fefi',
-  getParentRoute: () => rootRouteImport,
-} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
-  '/api/public/jobs/sync-fefi': typeof ApiPublicJobsSyncFefiRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
-  '/api/public/jobs/sync-fefi': typeof ApiPublicJobsSyncFefiRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
-  '/api/public/jobs/sync-fefi': typeof ApiPublicJobsSyncFefiRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/api/public/jobs/sync-fefi'
+  fullPaths: '/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/api/public/jobs/sync-fefi'
-  id: '__root__' | '/' | '/api/public/jobs/sync-fefi'
+  to: '/'
+  id: '__root__' | '/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
-  ApiPublicJobsSyncFefiRoute: typeof ApiPublicJobsSyncFefiRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -58,19 +48,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/api/public/jobs/sync-fefi': {
-      id: '/api/public/jobs/sync-fefi'
-      path: '/api/public/jobs/sync-fefi'
-      fullPath: '/api/public/jobs/sync-fefi'
-      preLoaderRoute: typeof ApiPublicJobsSyncFefiRouteImport
-      parentRoute: typeof rootRouteImport
-    }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
-  ApiPublicJobsSyncFefiRoute: ApiPublicJobsSyncFefiRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
