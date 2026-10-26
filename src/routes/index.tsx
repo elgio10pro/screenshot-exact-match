@@ -1,7 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
-import { useServerFn } from "@tanstack/react-start";
-import { getTeams, predictMatch, syncUnit, type Team } from "@/lib/fefi.functions";
+import { useEffect, useRef, useState } from "react";
+import { Button } from "@/components/ui/button";
+import { categories, currentTeams, loadDataset, predictMatch, ZONA_NIVEL, type Dataset } from "@/lib/local-api";
+import { relatorDetails } from "@/lib/relator";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -17,8 +18,11 @@ export const Route = createFileRoute("/")({
   component: Index,
 });
 
-const CATS = [12, 13, 14, 15, 16, 17, 18];
-type Prediction = Awaited<ReturnType<typeof predictMatch>>;
+type Prediction = ReturnType<typeof predictMatch> & { texto: string };
+
+function Ball() {
+  return <span className="ball-bounce inline-flex" aria-hidden><svg viewBox="0 0 40 40" className="ball-spin !h-8 !w-8"><circle cx="20" cy="20" r="18" className="fill-chalk stroke-secondary" strokeWidth="2"/><path d="M20 11 29 17 25 28 15 28 11 17Z M4 16 11 17 8 7 M29 17 36 16 32 7 M15 28 12 36 M25 28 28 36" className="fill-secondary stroke-secondary" strokeWidth="2"/></svg></span>;
+}
 
 function Shield({ tone }: { tone: "a" | "b" }) {
   return (
@@ -67,57 +71,42 @@ const selectCls =
   "w-full appearance-none rounded-2xl border-4 border-secondary bg-card px-4 py-4 text-lg font-bold text-card-foreground outline-none focus:ring-4 focus:ring-ring disabled:opacity-60";
 
 function Index() {
-  const fetchTeams = useServerFn(getTeams);
-  const doPredict = useServerFn(predictMatch);
-  const doSync = useServerFn(syncUnit);
-
-  const [cat, setCat] = useState<number | null>(null);
-  const [teams, setTeams] = useState<Team[]>([]);
+  const [data, setData] = useState<Dataset | null>(null);
+  const [cat, setCat] = useState("");
+  const [zonaA, setZonaA] = useState("");
+  const [zonaB, setZonaB] = useState("");
   const [a, setA] = useState("");
   const [b, setB] = useState("");
-  const [loadingTeams, setLoadingTeams] = useState(false);
   const [loading, setLoading] = useState(false);
   const [syncing, setSyncing] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
   const [pred, setPred] = useState<Prediction | null>(null);
-  const [reload, setReload] = useState(0);
-
-  useEffect(() => {
-    if (cat === null) return;
-    setLoadingTeams(true);
-    setA(""); setB(""); setPred(null);
-    fetchTeams({ data: { torneo: "copa", cat: String(cat) } })
-      .then(setTeams)
-      .catch(() => setMsg("No pudimos cargar los equipos."))
-      .finally(() => setLoadingTeams(false));
-  }, [cat, reload, fetchTeams]);
-
-  // 36 unidades: 18 zonas × (Apertura, Clausura), en el mismo orden que el servidor.
-  const TOTAL_UNIDADES = 36;
-
+  const previousOpening = useRef("");
+  const version = useRef(0);
+  const teams = data && cat ? currentTeams(data, cat) : [];
+  const zones = ZONA_NIVEL.filter(z => teams.some(t => t.zona === z.zona));
+  useEffect(() => { loadDataset().then(setData).catch(e => setMsg(e.message)); }, []);
+  function resetResult() { version.current++; setPred(null); setLoading(false); setMsg(null); }
   async function onSync() {
     setSyncing(true); setMsg(null);
-    const fallidas: string[] = [];
-    for (let u = 0; u < TOTAL_UNIDADES; u++) {
-      const r = await doSync({ data: { unit: u } }).catch((e: Error) => ({ ok: false as const, unidad: `Unidad ${u + 1}`, error: e.message }));
-      if (r.ok) setMsg(`${r.unidad} · ${u + 1}/${TOTAL_UNIDADES}`);
-      else fallidas.push(r.unidad);
-    }
-    setSyncing(false);
-    setMsg(fallidas.length ? `Listo, pero fallaron: ${fallidas.join(", ")}.` : "¡Listo! Datos actualizados.");
-    setReload((x) => x + 1);
+    try { setData(await loadDataset()); resetResult(); setA(""); setB(""); setZonaA(""); setZonaB(""); setMsg("¡Listo! Datos actualizados."); }
+    catch { setMsg("No pudimos cargar los equipos."); }
+    finally { setSyncing(false); }
   }
-
   async function onPredict() {
-    if (!cat || !a || !b) return;
+    const teamA = teams.find(t => t.key === a), teamB = teams.find(t => t.key === b);
+    if (!data || !teamA || !teamB || a === b) return;
+    const request = ++version.current;
     setLoading(true); setPred(null); setMsg(null);
     try {
-      setPred(await doPredict({ data: { torneo: "copa", cat: String(cat), a, b } }));
-    } catch (e) {
-      setMsg((e as Error).message);
-    } finally {
-      setLoading(false);
-    }
+      const p = predictMatch(data, cat, teamA, teamB);
+      const text = relatorDetails({ ...p, anteriorApertura: previousOpening.current });
+      await new Promise(resolve => setTimeout(resolve, 1400));
+      if (request !== version.current) return;
+      previousOpening.current = text.apertura;
+      setPred({ ...p, texto: text.texto });
+    } catch(e) { if (request === version.current) setMsg(e instanceof Error ? e.message : "No pudimos calcular el pronóstico."); }
+    finally { if (request === version.current) setLoading(false); }
   }
 
   return (
@@ -126,56 +115,59 @@ function Index() {
         <div className="text-5xl">⚽</div>
         <h1 className="font-display text-4xl leading-tight text-chalk drop-shadow">Predictor de Partidos</h1>
         <p className="font-display text-xl text-primary">Fútbol Infantil · FEFI</p>
-        <p className="mt-1 text-xs opacity-80">App no oficial · datos de la Copa de Campeones 2026</p>
+        <p className="mt-1 text-xs opacity-80">App no oficial · datos del Torneo Anual 2026</p>
       </header>
 
       <section className="space-y-5 rounded-3xl bg-card p-5 text-card-foreground shadow-card">
         <div>
           <p className="mb-2 font-display text-xl">1. Categoría</p>
           <div className="grid grid-cols-4 gap-2">
-            {CATS.map((c) => (
-              <button
+            {(data ? categories(data) : []).map((c) => (
+              <Button
                 key={c}
-                onClick={() => setCat(c)}
-                className={`rounded-2xl border-4 py-3 font-display text-2xl transition active:translate-y-1 ${
+                onClick={() => { resetResult(); setCat(c); setZonaA(""); setZonaB(""); setA(""); setB(""); }}
+                className={`h-auto rounded-2xl border-4 px-1 py-3 font-display text-2xl transition active:translate-y-1 ${
                   cat === c ? "border-secondary bg-primary text-primary-foreground shadow-pop" : "border-border bg-muted"
                 }`}
               >
                 {c}
-              </button>
+              </Button>
             ))}
           </div>
         </div>
 
-        <div>
-          <p className="mb-2 font-display text-xl">2. Mi club</p>
-          <select className={selectCls} value={a} onChange={(e) => setA(e.target.value)} disabled={!cat || loadingTeams}>
-            <option value="">{!cat ? "Elegí categoría" : loadingTeams ? "Cargando…" : teams.length ? "Elegí tu club" : "Sin datos (tocá Actualizar)"}</option>
-            {teams.map((t) => <option key={t.key} value={t.key}>{t.nombre}</option>)}
-          </select>
-        </div>
+        {([{ title: "2. Equipo 1 (mi equipo)", zona: zonaA, key: a, other: b, setZona: setZonaA, setKey: setA }, { title: "3. Equipo 2 (rival)", zona: zonaB, key: b, other: a, setZona: setZonaB, setKey: setB }]).map((side, i) => (
+          <div key={side.title} className="space-y-2">
+            <p className="font-display text-xl">{side.title}</p>
+            <label htmlFor={`zona-${i}`} className="block font-bold">Zona</label>
+            <select id={`zona-${i}`} className={selectCls} value={side.zona} disabled={!cat || loading} onChange={e => { resetResult(); side.setZona(e.target.value); side.setKey(""); }}>
+              <option value="">{!cat ? "Elegí categoría" : "Elegí zona"}</option>
+              {zones.map(z => <option key={z.zona} value={z.zona}>Zona {z.zona} · nivel {z.nivel}</option>)}
+            </select>
+            <label htmlFor={`equipo-${i}`} className="block font-bold">Equipo</label>
+            <select id={`equipo-${i}`} className={selectCls} value={side.key} disabled={!side.zona || loading} onChange={e => { resetResult(); side.setKey(e.target.value); }}>
+              <option value="">{!side.zona ? "Elegí zona" : "Elegí equipo"}</option>
+              {teams.filter(t => t.zona === side.zona && t.pj > 0 && t.key !== side.other).map(t => <option key={t.key} value={t.key}>{t.nombre} · {t.pj} PJ</option>)}
+            </select>
+          </div>
+        ))}
 
-        <div>
-          <p className="mb-2 font-display text-xl">3. Club rival</p>
-          <select className={selectCls} value={b} onChange={(e) => setB(e.target.value)} disabled={!cat || loadingTeams}>
-            <option value="">Elegí el rival</option>
-            {teams.filter((t) => t.key !== a).map((t) => <option key={t.key} value={t.key}>{t.nombre}</option>)}
-          </select>
-        </div>
-
-        <button
+        <Button
           onClick={onPredict}
           disabled={!a || !b || loading}
-          className="w-full rounded-2xl bg-accent py-5 font-display text-2xl text-accent-foreground shadow-pop transition active:translate-y-1 disabled:opacity-50"
+          className="h-auto min-h-20 w-full whitespace-normal rounded-2xl bg-accent py-5 font-display text-2xl text-accent-foreground shadow-pop transition active:translate-y-1 disabled:opacity-50"
         >
-          {loading ? "Calculando… 🤔" : "Predecir partido"}
-        </button>
+          {loading ? <><Ball /><span>Pateando el pronóstico…</span></> : "Predecir partido"}
+        </Button>
       </section>
 
       {msg && <p className="mt-4 rounded-2xl bg-card/90 p-3 text-center font-bold text-card-foreground">{msg}</p>}
 
+      {loading && <div role="status" className="mt-6 flex min-h-40 items-center justify-center gap-3 rounded-3xl bg-card p-5 font-display text-xl text-card-foreground"><Ball />Pateando el pronóstico…</div>}
+
       {pred && (
         <section className="mt-6 space-y-5 rounded-3xl bg-card p-5 text-card-foreground shadow-card animate-in fade-in slide-in-from-bottom-4">
+          {pred.zonaA !== pred.zonaB && <div className="rounded-2xl bg-warn p-3 text-sm font-bold text-warn-foreground">Equipos de divisiones distintas ({pred.diferenciaNivel} divisiones de diferencia): el pronóstico pesa mucho la diferencia de nivel entre zonas.</div>}
           {pred.pocosDatos && (
             <div className="rounded-2xl bg-warn p-3 text-sm font-bold text-warn-foreground">
               ⚠️ Pocos datos: algún equipo jugó menos de 3 partidos. Pronóstico poco confiable.
@@ -185,6 +177,7 @@ function Index() {
             <div className="flex flex-col items-center gap-1">
               <Shield tone="a" />
               <span className="text-sm font-black leading-tight">{pred.nombreA}</span>
+              <span className="text-xs">Zona {pred.zonaA} · división {pred.nivelA}</span>
             </div>
             <div className="rounded-2xl bg-secondary px-4 py-2 font-display text-5xl text-secondary-foreground">
               {pred.marcador.a}<span className="mx-1 opacity-60">-</span>{pred.marcador.b}
@@ -192,6 +185,7 @@ function Index() {
             <div className="flex flex-col items-center gap-1">
               <Shield tone="b" />
               <span className="text-sm font-black leading-tight">{pred.nombreB}</span>
+              <span className="text-xs">Zona {pred.zonaB} · división {pred.nivelB}</span>
             </div>
           </div>
           <p className="-mt-2 text-center text-xs text-muted-foreground">Marcador más probable</p>
@@ -230,13 +224,13 @@ function Index() {
       )}
 
       <div className="mt-8 text-center">
-        <button
+        <Button
           onClick={onSync}
           disabled={syncing}
-          className="rounded-2xl border-4 border-chalk px-6 py-3 font-display text-lg text-chalk transition active:translate-y-1 disabled:opacity-60"
+          className="h-auto whitespace-normal rounded-2xl border-4 border-chalk px-6 py-3 font-display text-lg text-chalk transition active:translate-y-1 disabled:opacity-60"
         >
           {syncing ? "Actualizando…" : "🔄 Actualizar datos"}
-        </button>
+        </Button>
         <p className="mt-2 text-xs opacity-80">Se actualiza solo todos los días.</p>
       </div>
     </main>

@@ -93,3 +93,12 @@
 @utility font-display { font-family: var(--font-display); letter-spacing: 0.01em; }
 @utility shadow-pop { box-shadow: var(--shadow-pop); }
 @utility shadow-card { box-shadow: var(--shadow-card); }
+
+/* Only the requested loading effect; existing theme remains unchanged. */
+@keyframes ball-turn { to { transform: rotate(360deg); } }
+@keyframes ball-hop { 50% { transform: translateY(-5px); } }
+.ball-spin { animation: ball-turn .8s linear infinite; }
+.ball-bounce { animation: ball-hop .5s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) {
+  .ball-spin, .ball-bounce { animation: none; }
+}
