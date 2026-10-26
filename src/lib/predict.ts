@@ -1,4 +1,9 @@
 // Pure prediction logic: team stats + smoothed Poisson model.
+export const NIVEL_PASO = 0.12;
+export const SMOOTH_K = 3;
+export const LAMBDA_MAX = 12;
+export const LAMBDA_MIN = 0.05;
+export const POISSON_MAX = 25;
 
 export type MatchRow = {
   fecha_nro: number;
@@ -7,6 +12,8 @@ export type MatchRow = {
   visitante_key: string;
   goles_local: number | null;
   goles_visitante: number | null;
+  zona?: string;
+  torneo?: string;
 };
 
 export type Result = "V" | "E" | "D";
@@ -33,9 +40,9 @@ function teamGames(rows: MatchRow[], key: string) {
       const home = r.local_key === key;
       const gf = (home ? r.goles_local : r.goles_visitante) as number;
       const gc = (home ? r.goles_visitante : r.goles_local) as number;
-      return { fecha: r.fecha_nro, rival: home ? r.visitante_key : r.local_key, gf, gc };
+      return { fecha: r.fecha_nro, temporada: r.torneo === "Anual Clausura" ? 1 : 0, rival: home ? r.visitante_key : r.local_key, gf, gc };
     })
-    .sort((a, b) => b.fecha - a.fecha);
+    .sort((a, b) => b.temporada - a.temporada || b.fecha - a.fecha);
 }
 
 const res = (gf: number, gc: number): Result => (gf > gc ? "V" : gf === gc ? "E" : "D");
@@ -86,8 +93,6 @@ export function categoryAvgGoals(rows: MatchRow[]): number {
   return total / (played.length * 2); // goals per team per match
 }
 
-export const SMOOTH_K = 3;
-
 /** Shrink a team's per-match rate toward the category mean. */
 export function smoothRate(total: number, n: number, mean: number, k = SMOOTH_K) {
   return (total + k * mean) / (n + k);
@@ -99,7 +104,7 @@ export function poissonPmf(lambda: number, k: number) {
   return (Math.exp(-lambda) * Math.pow(lambda, k)) / f;
 }
 
-export function poissonOutcome(lambdaA: number, lambdaB: number, max = 15) {
+export function poissonOutcome(lambdaA: number, lambdaB: number, max = POISSON_MAX) {
   let win = 0, draw = 0, loss = 0, best = { a: 0, b: 0, p: -1 };
   for (let i = 0; i <= max; i++) {
     const pi = poissonPmf(lambdaA, i);
@@ -115,19 +120,32 @@ export function poissonOutcome(lambdaA: number, lambdaB: number, max = 15) {
   return { win: win / tot, draw: draw / tot, loss: loss / tot, score: best };
 }
 
-export function predict(rows: MatchRow[], a: string, b: string) {
-  const mean = categoryAvgGoals(rows);
+export type TeamContext = { zona: string; nivel: number };
+
+export function predict(rows: MatchRow[], a: string, b: string, equipoA: TeamContext = { zona: "", nivel: 1 }, equipoB: TeamContext = equipoA) {
+  rows = rows.filter(r => !r.torneo || r.torneo === "Anual Apertura" || r.torneo === "Anual Clausura");
+  const muA = categoryAvgGoals(rows.filter(r => (r.zona ?? "") === equipoA.zona));
+  const muB = categoryAvgGoals(rows.filter(r => (r.zona ?? "") === equipoB.zona));
+  const mean = (muA + muB) / 2;
   const sa = teamStats(rows, a);
   const sb = teamStats(rows, b);
-  const attA = smoothRate(sa.gf, sa.pj, mean);
-  const defA = smoothRate(sa.gc, sa.pj, mean);
-  const attB = smoothRate(sb.gf, sb.pj, mean);
-  const defB = smoothRate(sb.gc, sb.pj, mean);
-  const lambdaA = (attA * defB) / mean;
-  const lambdaB = (attB * defA) / mean;
+  // A zone of only 0–0 results has zero mean: use the explicit no-data prior
+  // for normalization only, so rates and probabilities stay finite.
+  const baseA = muA || 1.5, baseB = muB || 1.5;
+  const attA = smoothRate(sa.gf, sa.pj, baseA) / baseA;
+  const defA = smoothRate(sa.gc, sa.pj, baseA) / baseA;
+  const attB = smoothRate(sb.gf, sb.pj, baseB) / baseB;
+  const defB = smoothRate(sb.gc, sb.pj, baseB) / baseB;
+  const ajuste = equipoA.zona === equipoB.zona ? 1 : Math.exp(NIVEL_PASO * (equipoB.nivel - equipoA.nivel));
+  const clamp = (n: number) => Math.min(LAMBDA_MAX, Math.max(LAMBDA_MIN, n));
+  const lambdaA = clamp(mean * attA * defB * ajuste);
+  const lambdaB = clamp(mean * attB * defA / ajuste);
   const out = poissonOutcome(lambdaA, lambdaB);
   return {
     promedioCategoria: mean,
+    zonaA: equipoA.zona, nivelA: equipoA.nivel,
+    zonaB: equipoB.zona, nivelB: equipoB.nivel,
+    diferenciaNivel: Math.abs(equipoA.nivel - equipoB.nivel),
     statsA: sa,
     statsB: sb,
     golesEsperadosA: lambdaA,
