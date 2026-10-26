@@ -26,7 +26,7 @@ export const ENDINGS: Record<Scenario, string[]> = {
  FAVORITO_LEVE: ['La ventaja es chiquita, el partido sigue abierto', '{R} tiene espacio para cambiar la cuenta', '{F} asoma adelante, pero sin alejarse', 'El pronóstico va de puntitas, no de desfile', 'La pelota puede mover esta pequeña diferencia', 'Acá el candidato tiene que confirmar la previa', 'La cuenta es favorable, no definitiva', 'Una sola jugada puede cambiar el panorama'],
  EMPATE_PROBABLE: ['El reparto de puntos encabeza la cuenta, no está asegurado', 'Un gol puede romper esta igualdad prevista', 'La cancha dirá si la balanza termina quieta', 'Los números proponen tablas y la pelota decidirá', 'El empate manda en la previa, no en el silbato final', 'Nadie tiene una victoria escrita en esta cuenta']
 };
-const DATA: Record<string, string[]> = {
+export const DATA: Record<'goles' | 'defensa' | 'buena' | 'mala' | 'h2h' | 'nivel', string[]> = {
  goles: ['{A} promedia {gfA} goles a favor y {B}, {gfB}', 'En ataque, los promedios son {gfA} para {A} y {gfB} para {B}', 'La cuenta ofensiva muestra {gfA} goles por partido para {A} y {gfB} para {B}', 'Los goles a favor por encuentro: {A}, {gfA}; {B}, {gfB}', '{A} trae {gfA} goles de promedio ofensivo frente a {gfB} de {B}', 'Las estadísticas de ataque anotan {gfA} para {A} y {gfB} para {B}', 'El promedio a favor de {A} es {gfA} y el de {B} es {gfB}', 'La producción ofensiva por partido es {gfA} de {A} y {gfB} de {B}'],
  defensa: ['{A} recibe {gcA} goles por partido y {B}, {gcB}', 'En defensa, {A} tiene un promedio de {gcA} y {B} de {gcB}', 'Los goles recibidos por encuentro son {gcA} para {A} y {gcB} para {B}', 'La cuenta defensiva marca {gcA} de {A} contra {gcB} de {B}', '{A} registra {gcA} goles en contra de promedio frente a {gcB} de {B}', 'Los números atrás muestran {gcA} para {A} y {gcB} para {B}', 'El promedio recibido por {A} es {gcA}; por {B}, {gcB}', 'La defensa tiene estos promedios en contra: {A}, {gcA}; {B}, {gcB}'],
  buena: ['{T} suma {v} victorias en sus últimos {n} partidos', 'La racha de {T} trae {v} triunfos en {n} encuentros', '{T} anotó {v} victorias en la ventana reciente de {n} partidos', 'Los últimos {n} partidos de {T} incluyen {v} triunfos', 'La forma reciente de {T} registra {v} victorias en {n} partidos', 'En su tramo más reciente, {T} ganó {v} de {n}', '{T} viene con {v} partidos ganados entre los últimos {n}', 'La racha ganadora de {T} cuenta {v} triunfos en {n} presentaciones'],
@@ -64,7 +64,7 @@ export function relatorDetails(p: RelatorInput, seed = Math.random()) {
  if(total>=6) tags.push('GOLES'); if(total<=2.5) tags.push('TRABADO');
  if(p.diferenciaNivel>=3 && (p.nivelA>p.nivelB?p.probGana:p.probPierde)>=.25) tags.push('BATACAZO');
  if(p.pocosDatos) tags.push('POCOS_DATOS');
- if(tags.length) phrases.push(render(pick(TAGS[pick(tags)])));
+ if(tags.length) phrases.push(render(pick(TAGS[pick(tags)] ?? [])));
  phrases.push(render(pick(ENDINGS[sc])));
  return { texto:phrases.join(' '), apertura, escenario:sc };
 }

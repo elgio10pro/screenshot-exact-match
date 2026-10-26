@@ -14,7 +14,8 @@ describe('annual zone model',()=>{
   for(let level=1;level<=18;level++) { const x=predict(rows,'t0','t2',{zona:'A',nivel:1},{zona:'K',nivel:level}); expect(x.probGana+x.probEmpata+x.probPierde).toBeCloseTo(1); for(const n of [x.golesEsperadosA,x.golesEsperadosB]) {expect(n).toBeLessThanOrEqual(12);expect(n).toBeGreaterThanOrEqual(.05);} }
  });
  it('merges tournaments, excludes Copa, Clausura is newer',()=>{
-  const r:MatchRow[]=[{...rows[0],fecha_nro:20,local_key:'a',visitante_key:'b',goles_local:3,goles_visitante:0},{...rows[0],fecha_nro:1,torneo:'Anual Clausura',local_key:'a',visitante_key:'b',goles_local:0,goles_visitante:2},{...rows[0],torneo:'Copa de Campeones',local_key:'a',visitante_key:'b',goles_local:99,goles_visitante:0}];
+  const base: MatchRow = {fecha_nro:1,categoria:2013,zona:'A',torneo:'Anual Apertura',local_key:'a',visitante_key:'b',goles_local:0,goles_visitante:0};
+  const r:MatchRow[]=[{...base,fecha_nro:20,goles_local:3},{...base,torneo:'Anual Clausura',goles_visitante:2},{...base,torneo:'Copa de Campeones',goles_local:99}];
   const x=predict(r,'a','b',{zona:'A',nivel:1}); expect(x.statsA.pj).toBe(2);expect(x.statsA.gf).toBe(3);expect(x.statsA.forma).toEqual(['D','V']);expect(x.pocosDatos).toBe(true);
  });
  it('all zero scores remain finite',()=>{const x=predict(rows.map(r=>({...r,goles_local:0,goles_visitante:0})),'t0','r0',{zona:'A',nivel:1});expect(Number.isFinite(x.probEmpata)).toBe(true);});
@@ -24,7 +25,7 @@ describe('local team catalog',()=>{
  it('categories come only from annual records',()=>expect(categories(data)).toEqual(['2013','2014']));
  it('assigns latest zone while summing played matches',()=>expect(currentTeams(data,'2013')[0]).toMatchObject({zona:'F',nivel:6,pj:2}));
  it('pending teams remain catalogued with zero games',()=>expect(currentTeams(data,'2014').every(t=>t.pj===0)).toBe(true));
- it('rejects the same team twice',()=>{const t=currentTeams(data,'2013')[0];expect(()=>predictMatch(data,'2013',t,t)).toThrow();});
+ it('rejects the same team twice',()=>{const t=currentTeams(data,'2013')[0];if (!t) throw new Error('Missing fixture');expect(()=>predictMatch(data,'2013',t,t)).toThrow();});
 });
 describe('template relator',()=>{
  const cases:Record<Scenario,RelatorInput>={PALIZA:{...input,probGana:.92,probPierde:.03,probEmpata:.05},FAVORITO_CLARO:{...input,probGana:.75,probPierde:.15,probEmpata:.1},PAREJO:{...input,probGana:.4,probPierde:.38,probEmpata:.22},FAVORITO_LEVE:{...input,probGana:.6,probPierde:.25,probEmpata:.15},EMPATE_PROBABLE:{...input,probGana:.25,probPierde:.25,probEmpata:.5}};

@@ -7,7 +7,7 @@ export type Team = { key: string; nombre: string; cat: string; zona: string; niv
 export const annualMatches = (data: Dataset) => data.matches.filter(m => (m.t === "Anual Apertura" || m.t === "Anual Clausura") && ZONA_NIVEL.some(z => z.zona === m.z));
 export const categories = (data: Dataset) => [...new Set(annualMatches(data).map(m => m.c))].sort((a,b) => a.localeCompare(b, "es", { numeric: true }));
 export function categoryRows(data: Dataset, cat: string): MatchRow[] {
-  return annualMatches(data).filter(m => m.c === cat).map(m => ({ fecha_nro: m.f, categoria: Number(cat), torneo: m.t, zona: m.z, local_key: m.lk, visitante_key: m.vk, goles_local: m.gl, goles_visitante: m.gv }));
+  return annualMatches(data).filter(m => m.c === cat).map(m => ({ fecha_nro: m.f, categoria: Number(cat), torneo: m.t, zona: m.z ?? "", local_key: m.lk, visitante_key: m.vk, goles_local: m.gl, goles_visitante: m.gv }));
 }
 // Local equivalent of equipos_actuales: latest appearance assigns the zone,
 // but played games count both tournaments and all historical zones.
