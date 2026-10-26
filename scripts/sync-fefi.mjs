@@ -1,8 +1,7 @@
 #!/usr/bin/env node
 // Downloads the results from fefi.com.ar and writes public/data/matches.json.
 //
-//   node scripts/sync-fefi.mjs            -> Copa de Campeones
-//   node scripts/sync-fefi.mjs --anual    -> also the Torneo Anual (all zonas)
+//   node scripts/sync-fefi.mjs -> Anual Apertura + Clausura (18 zonas)
 //
 // Needs Node 22.18 or newer (it reads the TypeScript parser in src/lib directly).
 // If a club shows up twice with different spellings, add a line to
@@ -13,13 +12,12 @@ import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { ANUAL_ZONAS, normalizeTeam, parseAnualHtml, parseFefiHtml } from "../src/lib/fefi-parse.ts";
+import { ANUAL_ZONAS, normalizeTeam, parseAnualHtml } from "../src/lib/fefi-parse.ts";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const OUT = path.join(ROOT, "public", "data", "matches.json");
 const ALIASES = path.join(ROOT, "scripts", "team-aliases.json");
 
-const COPA_URL = "https://fefi.com.ar/2026-copa-de-campeones/";
 const ANUAL_API = "https://fefi.com.ar/wp-json/fefit/v1/vista";
 const VISTAS = [
   { vista: "fechas-apertura", torneo: "Anual Apertura" },
@@ -85,31 +83,24 @@ async function get(url, as) {
 }
 
 async function main() {
-  const withAnual = process.argv.includes("--anual") || process.env.FEFI_ANUAL === "1";
   const aliases = existsSync(ALIASES) ? JSON.parse(await readFile(ALIASES, "utf8")) : {};
 
   const units = [];
-  const copa = parseFefiHtml(await get(COPA_URL, "text")).map((p) => ({ ...p, cat: String(p.categoria), zona: "" }));
-  if (copa.length === 0) {
-    throw new Error("La página de la Copa no devolvió partidos. No se toca el archivo actual (¿cambió el diseño de FEFI?).");
-  }
-  units.push(copa);
-  console.log(`Copa de Campeones: ${copa.length} partidos`);
-
-  if (withAnual) {
     for (const z of ANUAL_ZONAS) {
       for (const v of VISTAS) {
         try {
           const json = await get(`${ANUAL_API}?torneo=1&zona=${z.id}&vista=${v.vista}`, "json");
-          units.push(parseAnualHtml(json.html ?? "", v.torneo, z.nombre));
+          const parsed = parseAnualHtml(json.html ?? "", v.torneo, z.nombre);
+          units.push(parsed);
+          console.log(`Zona ${z.nombre} · ${v.torneo}: ${parsed.length} partidos`);
         } catch (e) {
-          console.warn(`  (se saltea zona ${z.nombre} ${v.torneo}: ${e.message})`);
+          throw new Error(`Zona ${z.nombre} ${v.torneo}: ${e.message}. Se conserva el archivo anterior.`);
         }
       }
     }
-  }
 
   const next = buildDataset(units, aliases);
+  if (!next.matches.length) throw new Error("No llegaron partidos anuales; se conserva el archivo anterior");
 
   let previous = null;
   if (existsSync(OUT)) {
