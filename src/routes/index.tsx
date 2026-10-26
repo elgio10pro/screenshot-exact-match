@@ -124,6 +124,7 @@ function Index() {
           <div className="grid grid-cols-4 gap-2">
             {(data ? categories(data) : []).map((c) => (
               <Button
+                variant="ghost"
                 key={c}
                 onClick={() => { resetResult(); setCat(c); setZonaA(""); setZonaB(""); setA(""); setB(""); }}
                 className={`h-auto rounded-2xl border-4 px-1 py-3 font-display text-2xl transition active:translate-y-1 ${
@@ -153,9 +154,10 @@ function Index() {
         ))}
 
         <Button
+          variant="ghost"
           onClick={onPredict}
           disabled={!a || !b || loading}
-          className="h-auto min-h-20 w-full whitespace-normal rounded-2xl bg-accent py-5 font-display text-2xl text-accent-foreground shadow-pop transition active:translate-y-1 disabled:opacity-50"
+          className="h-auto min-h-20 w-full whitespace-normal rounded-2xl bg-accent hover:bg-accent/90 py-5 font-display text-2xl text-accent-foreground shadow-pop transition active:translate-y-1 disabled:opacity-50"
         >
           {loading ? <><Ball /><span>Pateando el pronóstico…</span></> : "Predecir partido"}
         </Button>
@@ -225,6 +227,7 @@ function Index() {
 
       <div className="mt-8 text-center">
         <Button
+          variant="ghost"
           onClick={onSync}
           disabled={syncing}
           className="h-auto whitespace-normal rounded-2xl border-4 border-chalk px-6 py-3 font-display text-lg text-chalk transition active:translate-y-1 disabled:opacity-60"
